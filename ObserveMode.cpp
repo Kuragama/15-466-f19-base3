@@ -45,12 +45,61 @@ ObserveMode::ObserveMode() {
 
 	current_camera = &scene->cameras.front();
 
+	// Find birds
+	for (auto it = scene->transforms.begin(); it != scene->transforms.end(); it++) {
+		if (it->name.substr(0, 4) == "BIRD") {
+			birds.push_back(&(*it));
+		} 
+	}
+	std::cout << "Found " << birds.size() << " birds." << std::endl;
+
 	noise_loop = Sound::loop_3D(*noise, 1.0f, glm::vec3(0.0f, 0.0f, 0.0f), 10.0f);
 }
 
 ObserveMode::~ObserveMode() {
 	noise_loop->stop();
 }
+
+bool ObserveMode::check_ray_bird(glm::vec3 ray, const Scene::Transform* bird) {
+	glm::vec3 O = current_camera->transform->position;
+	glm::vec3 C = bird->position;
+	float r = 0.1f;
+
+	float b = glm::dot(ray, O - C);
+	float c = glm::dot(O - C, O - C) - r * r;
+
+	return (b * b - c >= 0);
+}
+
+void ObserveMode::raycast_click(int x, int y) {
+	// Fix the screen dimensions
+	GLint dim_viewport[4];
+	glGetIntegerv(GL_VIEWPORT, dim_viewport);
+	int width = dim_viewport[2];
+	int height = dim_viewport[3];
+	
+	// Convert from viewport coords to normalized device coords
+	glm::vec3 ray_nds = glm::vec3(2.0f * x / width - 1.0f, 1.0f - (2.0f * y) / height, 1.0f);
+
+	// Convert from nds to homogenous clip coords
+	glm::vec4 ray_clip = glm::vec4(ray_nds.x, ray_nds.y, -1.0, 1.0);
+
+	// Convert from clip coords to camera coords
+	glm::vec4 ray_cam = glm::inverse(current_camera->make_projection()) * ray_clip;
+	ray_cam = glm::vec4(ray_cam.x, ray_cam.y, -1.0, 0.0);
+
+	// Convert from camera coords to world
+	glm::vec4 ray_wort = glm::inverse(current_camera->transform->make_world_to_local()) * ray_cam;
+	glm::vec3 ray_wor = glm::vec3(ray_wort.x, ray_wort.y, ray_wort.z);
+	ray_wor = glm::normalize(ray_wor);
+
+	// Check the ray against all birds
+	for (auto it = birds.begin(); it != birds.end(); it++) {
+		if (check_ray_bird(ray_wor, *it)) {
+			found_birds.push_back(*it);
+		}
+	}
+} 
 
 bool ObserveMode::handle_event(SDL_Event const &evt, glm::uvec2 const &window_size) {
 	if (evt.type == SDL_KEYDOWN) {
@@ -69,6 +118,10 @@ bool ObserveMode::handle_event(SDL_Event const &evt, glm::uvec2 const &window_si
 			current_camera = &*ci;
 
 			return true;
+		}
+	} else if (evt.type == SDL_MOUSEBUTTONDOWN) {
+		if (evt.button.button == SDL_BUTTON_LEFT) {
+			raycast_click(evt.button.x, evt.button.y);
 		}
 	}
 	
@@ -91,6 +144,11 @@ void ObserveMode::update(float elapsed) {
 	Sound::listener.set_position(frame[3]);
 	Sound::listener.set_right(frame[0]);
 	Sound::unlock();
+
+	// Update found birds
+	for (auto it = found_birds.begin(); it != found_birds.end(); it++) {
+		const_cast<Scene::Transform*>(*it)->position += glm::vec3(0.0f, 0.0f, 0.1f);
+	}
 }
 
 void ObserveMode::draw(glm::uvec2 const &drawable_size) {
@@ -112,11 +170,17 @@ void ObserveMode::draw(glm::uvec2 const &drawable_size) {
 		glBlendFunc(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA);
 		DrawSprites draw(*trade_font_atlas, glm::vec2(0,0), glm::vec2(320, 200), drawable_size, DrawSprites::AlignPixelPerfect);
 
+		std::string bird_text = "FOUND " + std::to_string(found_birds.size()) + "/" + std::to_string(birds.size()) + " BIRDS";
 		std::string help_text = "--- SWITCH CAMERAS WITH LEFT/RIGHT ---";
 		glm::vec2 min, max;
 		draw.get_text_extents(help_text, glm::vec2(0.0f, 0.0f), 1.0f, &min, &max);
 		float x = std::round(160.0f - (0.5f * (max.x + min.x)));
 		draw.draw_text(help_text, glm::vec2(x, 1.0f), 1.0f, glm::u8vec4(0x00,0x00,0x00,0xff));
 		draw.draw_text(help_text, glm::vec2(x, 2.0f), 1.0f, glm::u8vec4(0xff,0xff,0xff,0xff));
+
+		draw.get_text_extents(bird_text, glm::vec2(0.0f, 0.0f), 1.0f, &min, &max);
+		x = std::round(160.0f - (0.5f * (max.x + min.x)));
+		draw.draw_text(bird_text, glm::vec2(x, -10.0f), 1.0f, glm::u8vec4(0x00,0x00,0x00,0xff));
+		draw.draw_text(bird_text, glm::vec2(x, -12.0f), 1.0f, glm::u8vec4(0xff,0xff,0xff,0xff));
 	}
 }

@@ -1,8 +1,8 @@
-# (TODO: your game's title)
+# Birbwatch
 
-Author: (TODO: your name)
+Author: Margot Stewart (erstewar)
 
-Design: (TODO: In two sentences or fewer, describe what is new and interesting about your game.)
+Design: It's lowkey just the example game except I put birds in it?  Click on all the birds to "win"!
 
 Screen Shot:
 
@@ -10,10 +10,13 @@ Screen Shot:
 
 How To Play:
 
-(TODO: describe the controls and (if needed) goals/strategy.)
+Switch between the cameras using the left and right arrow keys and click on birds to make them fly away!  Oh no!  Where did they go??
+
+Drive them all away because birds aren't real.
 
 Sources:
 
-(TODO: fill in information about the sources of any **artwork** or **sounds** you used in the game that you did not create yourself. Feel free to also credit yourself for things you did make.)
+I reused the cityscape and sound from the original game.  The bird model was my own.
+Heavily referenced http://antongerdelan.net/opengl/raycasting.html to remind me how the heck to raycast without Unity's helpful APIs.
 
 This game was built with [NEST](NEST.md).
